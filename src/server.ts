@@ -60,7 +60,7 @@ const db: Database = loadDatabase();
 
 // 1. Create a new Quiz (Owner)
 app.post('/api/quizzes', (req: Request, res: Response) => {
-  const { title, description, questions, ownerName } = req.body;
+  const { title, description, questions, ownerName, revealScoreToStudents } = req.body;
 
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Quiz title is required.' });
@@ -102,6 +102,7 @@ app.post('/api/quizzes', (req: Request, res: Response) => {
     description: typeof description === 'string' ? description.trim() : '',
     ownerName: typeof ownerName === 'string' && ownerName.trim() ? ownerName.trim() : 'Anonymous Creator',
     createdAt: new Date().toISOString(),
+    revealScoreToStudents: Boolean(revealScoreToStudents), // Default false: Only admin sees score!
     questions: cleanQuestions,
     submissions: []
   };
@@ -203,9 +204,21 @@ app.post('/api/quizzes/:code/submit', (req: Request, res: Response) => {
   quiz.submissions.push(submission);
   saveDatabase(db);
 
+  // If score is set to private (default), do not reveal score or correct answers to student!
+  if (!quiz.revealScoreToStudents) {
+    return res.json({
+      success: true,
+      submissionId,
+      revealScore: false,
+      participantName: submission.participantName,
+      message: 'Your responses have been recorded and securely submitted to the administrator.'
+    });
+  }
+
   return res.json({
     success: true,
     submissionId,
+    revealScore: true,
     score,
     total,
     percentage,
@@ -308,6 +321,7 @@ app.get('/api/quizzes/:code/owner', (req: Request, res: Response) => {
       description: quiz.description,
       ownerName: quiz.ownerName,
       createdAt: quiz.createdAt,
+      revealScoreToStudents: Boolean(quiz.revealScoreToStudents),
       questionCount: quiz.questions.length
     },
     analytics: {
@@ -330,6 +344,30 @@ app.get('/api/quizzes/:code/owner', (req: Request, res: Response) => {
       })).reverse()
     }
   });
+});
+
+// 6. Owner Toggle: Release / Hide Score from Students
+app.post('/api/quizzes/:code/toggle-reveal', (req: Request, res: Response) => {
+  const code = String(req.params.code).trim().toUpperCase();
+  const ownerKey = (req.headers['x-owner-key'] as string) || (req.body.ownerKey as string) || (req.query.key as string);
+  const quiz = db.quizzes[code];
+
+  if (!quiz) {
+    return res.status(404).json({ error: 'Quiz not found.' });
+  }
+
+  if (quiz.ownerKey !== ownerKey) {
+    return res.status(403).json({ error: 'Unauthorized.' });
+  }
+
+  if (typeof req.body.revealScoreToStudents === 'boolean') {
+    quiz.revealScoreToStudents = req.body.revealScoreToStudents;
+  } else {
+    quiz.revealScoreToStudents = !quiz.revealScoreToStudents;
+  }
+
+  saveDatabase(db);
+  return res.json({ success: true, revealScoreToStudents: quiz.revealScoreToStudents });
 });
 
 // Fallback to SPA index.html for client-side routing

@@ -33,6 +33,7 @@ export interface Quiz {
   description: string;
   ownerName: string;
   createdAt: string;
+  revealScoreToStudents?: boolean; // Default false: only admin sees scores
   questions: Question[];
   submissions: Submission[];
 }

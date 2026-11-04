@@ -1415,7 +1415,20 @@
 
       <!-- Results View (Shown on submission) -->
       <div id="resultsBlock" style="display: none;">
-        <div class="results-hero">
+        
+        <!-- Student Private Confirmation Hero (Default: Only Admin can see scores) -->
+        <div class="results-hero" id="studentConfirmationHero" style="display: none;">
+          <div class="results-tag">Inquiry Submitted</div>
+          <h2 style="font-family: var(--font-serif); font-size: clamp(2rem, 5vw, 2.75rem); font-weight: 350; margin-bottom: 0.75rem; color: var(--text-main);" id="studentConfirmationTitle">
+            Responses Recorded
+          </h2>
+          <p class="results-message" id="studentConfirmationMessage" style="max-width: 540px; font-size: 1.05rem; line-height: 1.6;">
+            Thank you. Your responses have been securely delivered to the instructor. Scores and answer keys are retained privately by the administrator.
+          </p>
+        </div>
+
+        <!-- Score Reveal Hero (Only active if admin enables student visibility) -->
+        <div class="results-hero" id="scoreRevealHero" style="display: none;">
           <div class="results-tag">Inquiry Complete</div>
           <div class="results-score-row">
             <div class="results-score-value" id="scoreNum">0</div>
@@ -1429,7 +1442,7 @@
         <!-- Participant Reaction & Reflection Card -->
         <div class="reaction-card" id="reactionCard">
           <h3 class="reaction-title">Share Your Reaction</h3>
-          <p class="reaction-subtitle">The author of this inquiry will see your score and sentiments in real time.</p>
+          <p class="reaction-subtitle">The instructor of this inquiry will see your score, answers, and sentiments in the admin dashboard.</p>
           
           <div class="reaction-pill-group" id="reactionPills">
             <button type="button" class="reaction-btn is-active" data-reaction="thought-provoking" data-emoji="✨">
@@ -1464,10 +1477,12 @@
           </button>
         </div>
 
-        <!-- Question-by-Question Review -->
-        <div class="review-heading">Question Breakdown</div>
-        <div class="review-list" id="reviewList">
-          <!-- Dynamic review cards -->
+        <!-- Question-by-Question Review (Only displayed if admin enables reveal) -->
+        <div id="reviewBreakdownContainer" style="display: none;">
+          <div class="review-heading">Question Breakdown</div>
+          <div class="review-list" id="reviewList">
+            <!-- Dynamic review cards -->
+          </div>
         </div>
 
         <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem;">
@@ -1504,6 +1519,19 @@
           <input type="text" id="createAuthor" class="text-input" placeholder="Your name or studio" />
         </div>
 
+        <!-- Privacy & Score Visibility Setting -->
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 0.5rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+          <input type="checkbox" id="createRevealScores" style="margin-top: 0.2rem; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" />
+          <div>
+            <label for="createRevealScores" style="font-size: 0.875rem; font-weight: 500; color: var(--text-main); cursor: pointer;">
+              Release scores to students upon completion
+            </label>
+            <div style="font-size: 0.775rem; color: var(--text-muted); margin-top: 0.2rem;">
+              Leave unchecked (default): <strong>Only the admin can see scores and answers in the dashboard</strong>. Students will only receive a submission confirmation.
+            </div>
+          </div>
+        </div>
+
         <div class="review-heading" style="margin-top: 2.5rem; margin-bottom: 1rem;">Questions List</div>
 
         <!-- Questions Container -->
@@ -1528,11 +1556,17 @@
     <section class="view-section" id="viewOwner">
       <div class="owner-header">
         <div class="owner-badge-row">
-          <div class="code-pill">
-            <span>CODE:</span>
-            <strong id="ownerCodeDisplay">ARCHIVE</strong>
+          <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+            <div class="code-pill">
+              <span>CODE:</span>
+              <strong id="ownerCodeDisplay">ARCHIVE</strong>
+            </div>
+            <div class="code-pill" id="ownerVisibilityBadge" style="border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: var(--text-muted);">
+              <span>Scores:</span> <strong id="ownerVisibilityText" style="color: var(--accent);">Private (Admin Only)</strong>
+            </div>
           </div>
-          <div style="display: flex; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline" id="btnToggleScoreRelease" style="font-size: 0.75rem; padding: 0.4rem 0.75rem;">Release to Students</button>
             <button type="button" class="btn btn-outline" id="btnCopyShareLink">Copy Share Link</button>
             <button type="button" class="btn btn-outline" id="btnRefreshOwnerData">↻ Refresh</button>
           </div>
@@ -2106,25 +2140,48 @@
 
         state.currentSubmissionId = data.submissionId;
 
-        // Display results
+        // Display results container
         quizEl.stage.style.display = 'none';
         quizEl.headerBlock.style.display = 'none';
         quizEl.resultsBlock.style.display = 'block';
 
-        quizEl.scoreNum.textContent = data.score;
-        quizEl.scoreTotal.textContent = `/ ${padZero(data.total)}`;
+        const studentConfirmationHero = document.getElementById('studentConfirmationHero');
+        const scoreRevealHero = document.getElementById('scoreRevealHero');
+        const reviewBreakdownContainer = document.getElementById('reviewBreakdownContainer');
 
-        let msg = '';
-        if (data.percentage === 100) {
-          msg = "Flawless mastery. Exemplary precision and command of the subject.";
-        } else if (data.percentage >= 66) {
-          msg = "Astute perspective. A commendable comprehension with room for nuance.";
+        if (data.revealScore) {
+          // Admin enabled score reveal
+          if (studentConfirmationHero) studentConfirmationHero.style.display = 'none';
+          if (scoreRevealHero) scoreRevealHero.style.display = 'block';
+          if (reviewBreakdownContainer) reviewBreakdownContainer.style.display = 'block';
+
+          quizEl.scoreNum.textContent = data.score;
+          quizEl.scoreTotal.textContent = `/ ${padZero(data.total)}`;
+
+          let msg = '';
+          if (data.percentage === 100) {
+            msg = "Flawless mastery. Exemplary precision and command of the subject.";
+          } else if (data.percentage >= 66) {
+            msg = "Astute perspective. A commendable comprehension with room for nuance.";
+          } else {
+            msg = "An instructive endeavor. Review the detailed breakdown below to deepen your insight.";
+          }
+          quizEl.scoreMessage.textContent = msg;
+
+          renderReview(data.review);
         } else {
-          msg = "An instructive endeavor. Review the detailed breakdown below to deepen your insight.";
-        }
-        quizEl.scoreMessage.textContent = msg;
+          // Default: ONLY ADMIN SEES SCORES!
+          if (studentConfirmationHero) studentConfirmationHero.style.display = 'block';
+          if (scoreRevealHero) scoreRevealHero.style.display = 'none';
+          if (reviewBreakdownContainer) reviewBreakdownContainer.style.display = 'none';
 
-        renderReview(data.review);
+          const participantName = data.participantName || state.participantName || 'Participant';
+          const msgEl = document.getElementById('studentConfirmationMessage');
+          if (msgEl) {
+            msgEl.textContent = `Thank you, ${participantName}. Your responses have been securely delivered to the instructor. Scores and answer keys are retained privately by the administrator.`;
+          }
+        }
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         console.error(err);
@@ -2393,10 +2450,12 @@
         }
       }
 
+      const revealScoresCheckbox = document.getElementById('createRevealScores');
       const payload = {
         title: createEl.title.value.trim(),
         description: createEl.desc.value.trim(),
         ownerName: createEl.author.value.trim(),
+        revealScoreToStudents: revealScoresCheckbox ? revealScoresCheckbox.checked : false,
         questions: builderQuestions
       };
 
@@ -2477,6 +2536,39 @@
         ownerEl.codeDisplay.textContent = data.quiz.code;
         ownerEl.title.textContent = data.quiz.title;
         ownerEl.desc.textContent = data.quiz.description || `Created by ${data.quiz.ownerName}`;
+
+        // Student Score Visibility Toggle & Badge
+        const visibilityText = document.getElementById('ownerVisibilityText');
+        const btnToggle = document.getElementById('btnToggleScoreRelease');
+        const isRevealed = Boolean(data.quiz.revealScoreToStudents);
+
+        if (visibilityText) {
+          visibilityText.textContent = isRevealed ? 'Released to Students' : 'Private (Admin Only)';
+          visibilityText.style.color = isRevealed ? 'var(--correct)' : 'var(--accent)';
+        }
+
+        if (btnToggle) {
+          btnToggle.textContent = isRevealed ? 'Hide from Students' : 'Release to Students';
+          btnToggle.onclick = async () => {
+            try {
+              btnToggle.disabled = true;
+              btnToggle.textContent = 'Updating...';
+              const toggleRes = await fetch(`/api/quizzes/${encodeURIComponent(cleanCode)}/toggle-reveal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-owner-key': ownerKey },
+                body: JSON.stringify({ ownerKey })
+              });
+              if (toggleRes.ok) {
+                loadOwnerDashboard(cleanCode, ownerKey);
+              }
+            } catch (err) {
+              console.error(err);
+              alert('Failed to update visibility.');
+            } finally {
+              btnToggle.disabled = false;
+            }
+          };
+        }
 
         const an = data.analytics;
         ownerEl.metricSubmissions.textContent = an.totalSubmissions;

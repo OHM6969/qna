@@ -7,6 +7,7 @@
       "description": "An editorial inquiry into typography, architectural philosophy, and perceptual shifts.",
       "createdAt": "2026-11-03T15:03:07.778Z",
       "ownerName": "Editor-in-Chief",
+      "revealScoreToStudents": false,
       "questions": [
         {
           "id": 1,
@@ -162,6 +163,93 @@
             "1": true,
             "2": false,
             "3": false
+          }
+        },
+        {
+          "id": "sub_1d7a917c9a14882d",
+          "participantName": "Socrates",
+          "submittedAt": "2026-11-04T16:03:42.558Z",
+          "score": 3,
+          "total": 3,
+          "percentage": 100,
+          "reaction": "thought-provoking",
+          "reactionEmoji": "✨",
+          "feedbackNote": "The unexamined life is not worth living.",
+          "answers": {
+            "1": [
+              0
+            ],
+            "2": [
+              0,
+              2,
+              3
+            ],
+            "3": [
+              1
+            ]
+          },
+          "questionResults": {
+            "1": true,
+            "2": true,
+            "3": true
+          }
+        },
+        {
+          "id": "sub_e92289d652621e66",
+          "participantName": "Anonymous Participant",
+          "submittedAt": "2026-11-04T16:04:51.576Z",
+          "score": 3,
+          "total": 3,
+          "percentage": 100,
+          "reaction": "thought-provoking",
+          "reactionEmoji": "✨",
+          "feedbackNote": "",
+          "answers": {
+            "1": [
+              0
+            ],
+            "2": [
+              0,
+              2,
+              3
+            ],
+            "3": [
+              1
+            ]
+          },
+          "questionResults": {
+            "1": true,
+            "2": true,
+            "3": true
+          }
+        },
+        {
+          "id": "sub_68c61f9d02a9b431",
+          "participantName": "Anonymous Participant",
+          "submittedAt": "2026-11-04T16:05:15.691Z",
+          "score": 3,
+          "total": 3,
+          "percentage": 100,
+          "reaction": "thought-provoking",
+          "reactionEmoji": "✨",
+          "feedbackNote": "",
+          "answers": {
+            "1": [
+              0
+            ],
+            "2": [
+              0,
+              2,
+              3
+            ],
+            "3": [
+              1
+            ]
+          },
+          "questionResults": {
+            "1": true,
+            "2": true,
+            "3": true
           }
         }
       ]

@@ -10,6 +10,7 @@ export function getSeedData(): Database {
         description: 'An editorial inquiry into typography, architectural philosophy, and perceptual shifts.',
         createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
         ownerName: 'Editor-in-Chief',
+        revealScoreToStudents: false, // Default: Only admin can see score
         questions: [
           {
             id: 1,
