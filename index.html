@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curated Inquiry — Minimal Quiz</title>
+  
+  <!-- Typography: Fraunces (Editorial Serif), Inter (Clean Sans), JetBrains Mono (Keycaps) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS & RESET
+       ========================================================================== */
+    :root {
+      --bg: #0c0d0e;
+      --bg-surface: #131416;
+      --bg-surface-hover: #18191c;
+      --bg-surface-active: #1d1b17;
+      
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.18);
+      --border-focus: rgba(217, 155, 82, 0.6);
+      
+      --text-main: #f0ede6;
+      --text-muted: #8a8780;
+      --text-faint: #52504b;
+      
+      /* Single refined accent: warm luminous amber */
+      --accent: #d99b52;
+      --accent-soft: rgba(217, 155, 82, 0.12);
+      --accent-glow: rgba(217, 155, 82, 0.2);
+      --accent-contrast: #0c0d0e;
+      
+      /* Result feedback colors (subdued, quiet tones) */
+      --correct: #8ba888;
+      --correct-bg: rgba(139, 168, 136, 0.1);
+      --incorrect: #c47973;
+      --incorrect-bg: rgba(196, 121, 115, 0.1);
+
+      --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --radius: 8px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Ambient background with ultra-faint warm glow */
+    body {
+      position: relative;
+      background-image: 
+        radial-gradient(ellipse 900px 500px at 50% -50px, rgba(217, 155, 82, 0.05), transparent 70%),
+        radial-gradient(circle 800px at 50% 100%, rgba(255, 255, 255, 0.015), transparent 80%);
+      background-attachment: fixed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+
+    /* Subtle atmospheric film grain overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    /* App wrapper */
+    .app-shell {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Accessible visually-hidden utility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ==========================================================================
+       HEADER & PROGRESS
+       ========================================================================== */
+    .quiz-header {
+      margin-bottom: 2.5rem;
+    }
+
+    .quiz-meta-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .quiz-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-faint);
+      letter-spacing: 0.15em;
+    }
+
+    .quiz-brand-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      display: inline-block;
+    }
+
+    .progress-counter {
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+      font-size: 0.825rem;
+      color: var(--text-main);
+      letter-spacing: 0.05em;
+    }
+
+    .progress-counter .total {
+      color: var(--text-faint);
+    }
+
+    /* Thin, elegant progress bar line */
+    .progress-track {
+      position: relative;
+      width: 100%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: width 0.4s var(--ease-out-expo);
+    }
+
+    /* ==========================================================================
+       QUESTION CONTAINER & TRANSITIONS
+       ========================================================================== */
+    .question-viewport {
+      position: relative;
+      min-height: 380px;
+    }
+
+    .question-container {
+      transition: opacity 0.28s var(--ease-out-expo), transform 0.28s var(--ease-out-expo);
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .question-container.exit-left {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    .question-container.exit-right {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+
+    .question-container.enter-left {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    .question-container.enter-right {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+
+    .question-subhead {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .question-number-pill {
+      font-size: 0.725rem;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .question-mode-pill {
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      letter-spacing: 0.05em;
+    }
+
+    .question-text {
+      font-family: var(--font-serif);
+      font-size: clamp(1.45rem, 3.2vw, 1.85rem);
+      font-weight: 400;
+      line-height: 1.35;
+      letter-spacing: -0.015em;
+      color: var(--text-main);
+      margin-bottom: 2rem;
+    }
+
+    /* ==========================================================================
+       OPTIONS LIST & CHECKBOX ROWS
+       ========================================================================== */
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .option-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 58px;
+      padding: 0.875rem 1.15rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      user-select: none;
+      transition: 
+        border-color 0.2s var(--ease-out-expo),
+        background-color 0.2s var(--ease-out-expo),
+        box-shadow 0.2s var(--ease-out-expo),
+        transform 0.15s var(--ease-out-expo);
+    }
+
+    .option-row:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    .option-row:active {
+      transform: translateY(0);
+    }
+
+    /* Option Letter Marker (A, B, C...) */
+    .option-marker {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      width: 2.25rem;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s ease;
+    }
+
+    /* Option Text */
+    .option-label {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: #dedbd4;
+      padding-right: 1rem;
+      transition: color 0.2s ease;
+    }
+
+    /* Custom Checkbox Box */
+    .custom-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: auto;
+      transition: 
+        border-color 0.2s var(--ease-out-expo),
+        background-color 0.2s var(--ease-out-expo),
+        box-shadow 0.2s var(--ease-out-expo);
+    }
+
+    /* Checkmark SVG tick with draw animation */
+    .checkmark-svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: var(--accent-contrast);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 18;
+      stroke-dashoffset: 18;
+      transition: stroke-dashoffset 0.22s var(--ease-out-expo);
+    }
+
+    /* Checked State */
+    .option-row.is-selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: 0 0 24px rgba(217, 155, 82, 0.08);
+    }
+
+    .option-row.is-selected .option-marker {
+      color: var(--accent);
+    }
+
+    .option-row.is-selected .option-label {
+      color: #ffffff;
+    }
+
+    .option-row.is-selected .custom-checkbox {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(217, 155, 82, 0.35);
+    }
+
+    .option-row.is-selected .checkmark-svg {
+      stroke-dashoffset: 0;
+    }
+
+    /* Accessible keyboard focus ring */
+    .option-checkbox-input:focus-visible + .option-marker {
+      color: var(--accent);
+    }
+
+    .option-row:has(.option-checkbox-input:focus-visible) {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
+
+    /* ==========================================================================
+       NAVIGATION & ACTION BUTTONS
+       ========================================================================== */
+    .quiz-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 0.75rem 1.4rem;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-main);
+      text-decoration: none;
+      transition: 
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.15s ease;
+      user-select: none;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Ghost button for 'Previous' */
+    .btn-ghost {
+      color: var(--text-muted);
+      border-color: transparent;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* Outlined button for 'Next' */
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover:not(:disabled) {
+      border-color: var(--border-hover);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Accent button for 'Submit' and primary triggers */
+    .btn-accent {
+      background: var(--accent);
+      color: var(--accent-contrast);
+      font-weight: 600;
+      border-color: var(--accent);
+      box-shadow: 0 0 16px rgba(217, 155, 82, 0.18);
+    }
+
+    .btn-accent:hover:not(:disabled) {
+      background: #e5a75e;
+      border-color: #e5a75e;
+      box-shadow: 0 0 22px rgba(217, 155, 82, 0.28);
+    }
+
+    /* Keyboard navigation indicator bar */
+    .keyboard-hints {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+      font-size: 0.725rem;
+      color: var(--text-faint);
+    }
+
+    .hint-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .kbd {
+      font-family: var(--font-mono);
+      font-size: 0.675rem;
+      padding: 0.15rem 0.45rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       GENTLE UNANSWERED WARNING MODAL / DIALOG
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 11, 12, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s var(--ease-out-expo);
+    }
+
+    .modal-backdrop.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hover);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      padding: 1.85rem;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.25s var(--ease-out-expo);
+    }
+
+    .modal-backdrop.is-active .modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-tag {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal-title {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--text-main);
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-body {
+      font-size: 0.885rem;
+      line-height: 1.55;
+      color: var(--text-muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* ==========================================================================
+       RESULTS & REVIEW VIEW
+       ========================================================================== */
+    .results-view {
+      display: none;
+      animation: fadeIn 0.4s var(--ease-out-expo) forwards;
+    }
+
+    .results-view.is-visible {
+      display: block;
+    }
+
+    .results-hero {
+      text-align: left;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+
+    .results-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .results-score-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .results-score-value {
+      font-family: var(--font-serif);
+      font-size: clamp(3rem, 7vw, 4.25rem);
+      font-weight: 300;
+      line-height: 1;
+      color: var(--text-main);
+      letter-spacing: -0.03em;
+    }
+
+    .results-score-total {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      color: var(--text-muted);
+    }
+
+    .results-message {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      max-width: 520px;
+    }
+
+    .review-heading {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 1.75rem;
+      font-weight: 500;
+    }
+
+    .review-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .review-item {
+      padding: 1.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .review-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .review-item-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      letter-spacing: 0.05em;
+    }
+
+    .review-status-pill {
+      font-size: 0.7rem;
+      font-weight: 500;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      letter-spacing: 0.03em;
+    }
+
+    .review-status-pill.status-correct {
+      background: var(--correct-bg);
+      color: var(--correct);
+      border: 1px solid rgba(139, 168, 136, 0.25);
+    }
+
+    .review-status-pill.status-incorrect {
+      background: var(--incorrect-bg);
+      color: var(--incorrect);
+      border: 1px solid rgba(196, 121, 115, 0.25);
+    }
+
+    .review-question-text {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      font-weight: 400;
+      color: var(--text-main);
+      line-height: 1.4;
+      margin-bottom: 1.25rem;
+    }
+
+    .review-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .review-option-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid transparent;
+      color: var(--text-muted);
+    }
+
+    .review-option-row.is-correct-target {
+      border-color: rgba(139, 168, 136, 0.35);
+      background: var(--correct-bg);
+      color: #dfede0;
+    }
+
+    .review-option-row.is-wrong-selection {
+      border-color: rgba(196, 121, 115, 0.35);
+      background: var(--incorrect-bg);
+      color: #edd1cf;
+    }
+
+    .review-option-row.is-correct-selection {
+      border-color: rgba(139, 168, 136, 0.45);
+      background: var(--correct-bg);
+      color: #dfede0;
+    }
+
+    .review-option-badge {
+      font-size: 0.685rem;
+      font-family: var(--font-mono);
+      margin-left: auto;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .badge-correct {
+      background: rgba(139, 168, 136, 0.18);
+      color: var(--correct);
+    }
+
+    .badge-wrong {
+      background: rgba(196, 121, 115, 0.18);
+      color: var(--incorrect);
+    }
+
+    .badge-missed {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .results-footer {
+      display: flex;
+      justify-content: flex-start;
+      padding-top: 1rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ==========================================================================
+       RESPONSIVENESS & ACCESSIBILITY
+       ========================================================================== */
+    @media (max-width: 600px) {
+      body {
+        padding: 1.5rem 1rem 3rem;
+      }
+      .question-text {
+        font-size: 1.35rem;
+        margin-bottom: 1.5rem;
+      }
+      .option-row {
+        padding: 0.8rem 1rem;
+      }
+      .keyboard-hints {
+        display: none; /* Hide keyboard shortcut hints on touch devices */
+      }
+      .modal-card {
+        padding: 1.35rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      .question-container {
+        transform: none !important;
+      }
+      .checkmark-svg {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    
+    <!-- Header: Meta, Counter, Progress bar -->
+    <header class="quiz-header" id="quizHeader">
+      <div class="quiz-meta-bar">
+        <div class="quiz-brand">
+          <span class="quiz-brand-dot"></span>
+          <span>Inquiry</span>
+        </div>
+        <div class="progress-counter" id="progressCounter">
+          <span id="currentQNum">01</span> <span class="total">/ 03</span>
+        </div>
+      </div>
+      <div class="progress-track" role="progressbar" id="progressBarTrack" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </header>
+
+    <!-- Quiz Interactive Main Stage -->
+    <main id="quizStage">
+      <div class="question-viewport">
+        <div class="question-container" id="questionContainer">
+          
+          <div class="question-subhead">
+            <span class="question-number-pill" id="questionCategory">Question 01</span>
+            <span class="question-mode-pill" id="questionMode">Single Choice</span>
+          </div>
+
+          <h1 class="question-text" id="questionText">
+            Loading question...
+          </h1>
+
+          <div class="options-list" id="optionsList" role="group" aria-label="Question choices">
+            <!-- Dynamic option rows rendered here -->
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Navigation & Action Buttons -->
+      <footer class="quiz-actions">
+        <button type="button" class="btn btn-ghost" id="prevBtn" aria-label="Go to previous question">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Previous</span>
+        </button>
+
+        <button type="button" class="btn btn-outline" id="nextBtn">
+          <span>Next</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </footer>
+
+      <!-- Keyboard Shortcut Helper -->
+      <div class="keyboard-hints" aria-hidden="true">
+        <div class="hint-item"><span class="kbd">1–4</span> Toggle Option</div>
+        <div class="hint-item"><span class="kbd">Enter</span> Next</div>
+        <div class="hint-item"><span class="kbd">←</span> <span class="kbd">→</span> Navigate</div>
+      </div>
+    </main>
+
+    <!-- Results Screen (Shown on submission) -->
+    <section class="results-view" id="resultsView" aria-live="polite">
+      <div class="results-hero">
+        <div class="results-tag">Inquiry Complete</div>
+        <div class="results-score-row">
+          <div class="results-score-value" id="scoreNum">0</div>
+          <div class="results-score-total" id="scoreTotal">/ 03</div>
+        </div>
+        <p class="results-message" id="scoreMessage">
+          Review your answers and reflection below.
+        </p>
+      </div>
+
+      <div class="review-heading">Question Review</div>
+      <div class="review-list" id="reviewList">
+        <!-- Review cards dynamically injected here -->
+      </div>
+
+      <div class="results-footer">
+        <button type="button" class="btn btn-accent" id="retakeBtn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2.5 8C2.5 4.96243 4.96243 2.5 8 2.5C10.5 2.5 12.6 4.1 13.3 6.4M13.5 8C13.5 11.0376 11.0376 13.5 8 13.5C5.5 13.5 3.4 11.9 2.7 9.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M13.5 2.5V6.5H9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Retake Quiz</span>
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Gentle Warning Dialog for Unanswered Questions -->
+  <div class="modal-backdrop" id="warningModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc">
+    <div class="modal-card">
+      <div class="modal-tag">Review Needed</div>
+      <h2 class="modal-title" id="modalTitle">Unanswered Question</h2>
+      <p class="modal-body" id="modalDesc">
+        You have at least one unanswered question. Would you like to review it before finalizing your results?
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="modalSubmitAnywayBtn">Submit Anyway</button>
+        <button type="button" class="btn btn-accent" id="modalReviewBtn">Review Question</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // QUESTIONS DATA
+    //
+    // Add, edit, or remove questions below.
+    // Format:
+    //   id: Unique identifier (number or string)
+    //   question: The question prompt string
+    //   options: Array of option strings
+    //   answer: Array of correct option 0-based indices (supports single or multi)
+    // ============================================================================
+    const QUESTIONS = [
+      {
+        id: 1,
+        question: "Which of the following best characterizes the cognitive shift known as the 'overview effect'?",
+        options: [
+          "A profound sense of interconnectedness reported by space travelers viewing Earth",
+          "The psychological tunnel vision induced by extreme cognitive fatigue",
+          "An unconscious inclination to oversimplify multi-variable systemic problems",
+          "An aesthetic preference for architectural scale and aerial perspective"
+        ],
+        answer: [0]
+      },
+      {
+        id: 2,
+        question: "In classical Japanese aesthetics and joinery, which elements embody the ethos of Wabi-sabi?",
+        options: [
+          "Preservation of natural grain asymmetries and weathered patina",
+          "Precision-milled mirror chrome surfaces free from organic blemishes",
+          "Embrace of visible transience, impermanence, and modest unadorned materials",
+          "Interlocking joints assembled without synthetic fasteners or adhesives"
+        ],
+        answer: [0, 2, 3] // Demonstrates multiple correct options
+      },
+      {
+        id: 3,
+        question: "In typographic design, what fundamentally distinguishes a 'true small capital' from a mathematically scaled capital?",
+        options: [
+          "Identical glyph outlines simply reduced by 70% font size in the text engine",
+          "Carefully drawn stroke weights and proportions calibrated to match lowercase x-height",
+          "A forced mechanical italic angle applied exclusively to uppercase glyphs",
+          "An exaggerated baseline shift configured specifically for tabular figures"
+        ],
+        answer: [1]
+      }
+      // Paste additional question objects here...
+    ];
+
+    // ============================================================================
+    // APPLICATION STATE (Stored in memory only - no localStorage)
+    // ============================================================================
+    const state = {
+      currentIndex: 0,
+      userAnswers: {}, // Map of questionId -> Array of selected option indices
+      isTransitioning: false,
+      isSubmitted: false
+    };
+
+    // ============================================================================
+    // DOM ELEMENT REFERENCES
+    // ============================================================================
+    const el = {
+      quizHeader: document.getElementById('quizHeader'),
+      currentQNum: document.getElementById('currentQNum'),
+      progressCounter: document.getElementById('progressCounter'),
+      progressBar: document.getElementById('progressBar'),
+      progressBarTrack: document.getElementById('progressBarTrack'),
+      
+      quizStage: document.getElementById('quizStage'),
+      questionContainer: document.getElementById('questionContainer'),
+      questionCategory: document.getElementById('questionCategory'),
+      questionMode: document.getElementById('questionMode'),
+      questionText: document.getElementById('questionText'),
+      optionsList: document.getElementById('optionsList'),
+      
+      prevBtn: document.getElementById('prevBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      
+      resultsView: document.getElementById('resultsView'),
+      scoreNum: document.getElementById('scoreNum'),
+      scoreTotal: document.getElementById('scoreTotal'),
+      scoreMessage: document.getElementById('scoreMessage'),
+      reviewList: document.getElementById('reviewList'),
+      retakeBtn: document.getElementById('retakeBtn'),
+      
+      warningModal: document.getElementById('warningModal'),
+      modalTitle: document.getElementById('modalTitle'),
+      modalDesc: document.getElementById('modalDesc'),
+      modalReviewBtn: document.getElementById('modalReviewBtn'),
+      modalSubmitAnywayBtn: document.getElementById('modalSubmitAnywayBtn')
+    };
+
+    // Format numbers with leading zeros (e.g. 01, 02)
+    function padZero(num) {
+      return num < 10 ? `0${num}` : `${num}`;
+    }
+
+    // ============================================================================
+    // RENDERING & LOGIC
+    // ============================================================================
+
+    /**
+     * Updates header counter and thin progress line
+     */
+    function updateProgress() {
+      const total = QUESTIONS.length;
+      const current = state.currentIndex + 1;
+      
+      el.currentQNum.textContent = padZero(current);
+      el.progressCounter.querySelector('.total').textContent = `/ ${padZero(total)}`;
+      
+      const percent = (current / total) * 100;
+      el.progressBar.style.width = `${percent}%`;
+      el.progressBarTrack.setAttribute('aria-valuenow', Math.round(percent));
+    }
+
+    /**
+     * Renders the current question and options
+     * @param {string} direction - 'next', 'prev', or null for direct render
+     */
+    function renderQuestion(direction = null) {
+      const q = QUESTIONS[state.currentIndex];
+      const isLast = state.currentIndex === QUESTIONS.length - 1;
+      const isMulti = q.answer.length > 1;
+
+      // Update question badges and text
+      el.questionCategory.textContent = `Question ${padZero(state.currentIndex + 1)}`;
+      el.questionMode.textContent = isMulti ? 'Select all that apply' : 'Single choice';
+      el.questionText.textContent = q.question;
+
+      // Clear and build options
+      el.optionsList.innerHTML = '';
+      const currentSelections = state.userAnswers[q.id] || [];
+
+      q.options.forEach((optText, idx) => {
+        const letter = String.fromCharCode(65 + idx); // A, B, C, D...
+        const isSelected = currentSelections.includes(idx);
+
+        const row = document.createElement('label');
+        row.className = `option-row ${isSelected ? 'is-selected' : ''}`;
+        row.setAttribute('for', `opt-${q.id}-${idx}`);
+        row.dataset.index = idx;
+
+        // Hidden accessible checkbox
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `opt-${q.id}-${idx}`;
+        input.className = 'sr-only option-checkbox-input';
+        input.checked = isSelected;
+        input.setAttribute('aria-label', `Option ${letter}: ${optText}`);
+
+        input.addEventListener('change', () => {
+          toggleOption(idx);
+        });
+
+        // Marker (A, B, C...)
+        const marker = document.createElement('div');
+        marker.className = 'option-marker';
+        marker.textContent = letter;
+
+        // Label Text
+        const text = document.createElement('div');
+        text.className = 'option-label';
+        text.textContent = optText;
+
+        // Custom Checkbox Box with SVG tick
+        const box = document.createElement('div');
+        box.className = 'custom-checkbox';
+        box.setAttribute('aria-hidden', 'true');
+        box.innerHTML = `
+          <svg class="checkmark-svg" viewBox="0 0 16 16">
+            <path d="M3.5 8.5L6.5 11.5L12.5 4.5" />
+          </svg>
+        `;
+
+        row.appendChild(input);
+        row.appendChild(marker);
+        row.appendChild(text);
+        row.appendChild(box);
+
+        el.optionsList.appendChild(row);
+      });
+
+      // Update Navigation Buttons
+      el.prevBtn.disabled = state.currentIndex === 0;
+
+      if (isLast) {
+        el.nextBtn.className = 'btn btn-accent';
+        el.nextBtn.innerHTML = `
+          <span>Submit</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+      } else {
+        el.nextBtn.className = 'btn btn-outline';
+        el.nextBtn.innerHTML = `
+          <span>Next</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+      }
+
+      updateProgress();
+    }
+
+    /**
+     * Animated question transition handler
+     */
+    function transitionToQuestion(newIndex, direction) {
+      if (state.isTransitioning || newIndex === state.currentIndex) return;
+      state.isTransitioning = true;
+
+      const exitClass = direction === 'next' ? 'exit-left' : 'exit-right';
+      const enterClass = direction === 'next' ? 'enter-right' : 'enter-left';
+
+      el.questionContainer.classList.add(exitClass);
+
+      setTimeout(() => {
+        state.currentIndex = newIndex;
+        renderQuestion(direction);
+
+        el.questionContainer.classList.remove(exitClass);
+        el.questionContainer.classList.add(enterClass);
+
+        // Force reflow
+        void el.questionContainer.offsetWidth;
+
+        el.questionContainer.classList.remove(enterClass);
+        state.isTransitioning = false;
+      }, 200);
+    }
+
+    /**
+     * Toggles an option selection for current question
+     */
+    function toggleOption(optIndex) {
+      const q = QUESTIONS[state.currentIndex];
+      const currentList = state.userAnswers[q.id] ? [...state.userAnswers[q.id]] : [];
+      const isMulti = q.answer.length > 1;
+
+      let updatedList;
+      if (isMulti) {
+        if (currentList.includes(optIndex)) {
+          updatedList = currentList.filter(i => i !== optIndex);
+        } else {
+          updatedList = [...currentList, optIndex].sort((a, b) => a - b);
+        }
+      } else {
+        // Single choice: clicking already selected item leaves it or toggles;
+        // selecting a different one replaces it
+        if (currentList.includes(optIndex)) {
+          updatedList = [];
+        } else {
+          updatedList = [optIndex];
+        }
+      }
+
+      state.userAnswers[q.id] = updatedList;
+
+      // Update UI classes without full re-render for smooth micro-interaction
+      const optionRows = el.optionsList.querySelectorAll('.option-row');
+      optionRows.forEach((row, idx) => {
+        const isChecked = updatedList.includes(idx);
+        row.classList.toggle('is-selected', isChecked);
+        const input = row.querySelector('.option-checkbox-input');
+        if (input) input.checked = isChecked;
+      });
+    }
+
+    /**
+     * Navigation actions
+     */
+    function handlePrevious() {
+      if (state.currentIndex > 0) {
+        transitionToQuestion(state.currentIndex - 1, 'prev');
+      }
+    }
+
+    function handleNext() {
+      const isLast = state.currentIndex === QUESTIONS.length - 1;
+      if (isLast) {
+        handleSubmitRequest();
+      } else {
+        transitionToQuestion(state.currentIndex + 1, 'next');
+      }
+    }
+
+    /**
+     * Check for unanswered questions and proceed
+     */
+    function handleSubmitRequest() {
+      const unansweredIndices = [];
+      QUESTIONS.forEach((q, idx) => {
+        const answers = state.userAnswers[q.id];
+        if (!answers || answers.length === 0) {
+          unansweredIndices.push(idx);
+        }
+      });
+
+      if (unansweredIndices.length > 0) {
+        showWarningModal(unansweredIndices);
+      } else {
+        finalizeSubmission();
+      }
+    }
+
+    function showWarningModal(unansweredIndices) {
+      const firstUnanswered = unansweredIndices[0];
+      const count = unansweredIndices.length;
+      
+      el.modalTitle.textContent = count === 1 ? 'Unanswered Inquiry' : `${count} Unanswered Inquiries`;
+      el.modalDesc.textContent = count === 1
+        ? `You have not selected an answer for Question ${padZero(firstUnanswered + 1)}. Would you like to review it before finalizing?`
+        : `Questions ${unansweredIndices.map(i => padZero(i + 1)).join(', ')} have no selected answers. Would you like to review them now?`;
+
+      el.warningModal.classList.add('is-active');
+      el.modalReviewBtn.focus();
+
+      // Setup one-time modal actions
+      el.modalReviewBtn.onclick = () => {
+        closeWarningModal();
+        transitionToQuestion(firstUnanswered, firstUnanswered > state.currentIndex ? 'next' : 'prev');
+      };
+
+      el.modalSubmitAnywayBtn.onclick = () => {
+        closeWarningModal();
+        finalizeSubmission();
+      };
+    }
+
+    function closeWarningModal() {
+      el.warningModal.classList.remove('is-active');
+    }
+
+    /**
+     * Final submission and score calculation
+     */
+    function finalizeSubmission() {
+      state.isSubmitted = true;
+
+      let score = 0;
+      const reviewDetails = [];
+
+      QUESTIONS.forEach((q, idx) => {
+        const userSelections = state.userAnswers[q.id] || [];
+        const correctAnswers = q.answer;
+
+        // Check if sets of numbers match identically
+        const isCorrect = 
+          userSelections.length === correctAnswers.length &&
+          userSelections.every(val => correctAnswers.includes(val));
+
+        if (isCorrect) score++;
+
+        reviewDetails.push({
+          question: q,
+          userSelections,
+          isCorrect
+        });
+      });
+
+      // Hide quiz stage and show results
+      el.quizStage.style.display = 'none';
+      el.quizHeader.style.display = 'none';
+      el.resultsView.classList.add('is-visible');
+
+      // Populate results
+      el.scoreNum.textContent = score;
+      el.scoreTotal.textContent = `/ ${padZero(QUESTIONS.length)}`;
+
+      const ratio = score / QUESTIONS.length;
+      let msg = "";
+      if (ratio === 1) {
+        msg = "Exemplary precision. An astute eye for nuance, proportion, and craftsmanship.";
+      } else if (ratio >= 0.6) {
+        msg = "Discerning perspective. A strong grasp of the material with room for subtle refinement.";
+      } else {
+        msg = "An instructive exploration. Each question is an invitation to examine the craft more deeply.";
+      }
+      el.scoreMessage.textContent = msg;
+
+      // Render per-question review
+      renderReview(reviewDetails);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /**
+     * Render the detailed question-by-question review
+     */
+    function renderReview(details) {
+      el.reviewList.innerHTML = '';
+
+      details.forEach((item, idx) => {
+        const q = item.question;
+        const card = document.createElement('article');
+        card.className = 'review-item';
+
+        const header = document.createElement('div');
+        header.className = 'review-item-header';
+
+        const num = document.createElement('div');
+        num.className = 'review-item-num';
+        num.textContent = `Inquiry ${padZero(idx + 1)}`;
+
+        const pill = document.createElement('span');
+        pill.className = `review-status-pill ${item.isCorrect ? 'status-correct' : 'status-incorrect'}`;
+        pill.textContent = item.isCorrect ? 'Correct' : 'Incorrect';
+
+        header.appendChild(num);
+        header.appendChild(pill);
+
+        const qTitle = document.createElement('h3');
+        qTitle.className = 'review-question-text';
+        qTitle.textContent = q.question;
+
+        const optionsBox = document.createElement('div');
+        optionsBox.className = 'review-options';
+
+        q.options.forEach((optText, optIdx) => {
+          const letter = String.fromCharCode(65 + optIdx);
+          const wasSelected = item.userSelections.includes(optIdx);
+          const isTargetAnswer = q.answer.includes(optIdx);
+
+          const row = document.createElement('div');
+          let rowClass = 'review-option-row';
+          let badgeHtml = '';
+
+          if (wasSelected && isTargetAnswer) {
+            rowClass += ' is-correct-selection';
+            badgeHtml = `<span class="review-option-badge badge-correct">Your Choice · Correct</span>`;
+          } else if (wasSelected && !isTargetAnswer) {
+            rowClass += ' is-wrong-selection';
+            badgeHtml = `<span class="review-option-badge badge-wrong">Your Choice · Incorrect</span>`;
+          } else if (!wasSelected && isTargetAnswer) {
+            rowClass += ' is-correct-target';
+            badgeHtml = `<span class="review-option-badge badge-missed">Correct Answer</span>`;
+          }
+
+          row.className = rowClass;
+          row.innerHTML = `
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-faint);">${letter}.</span>
+            <span style="flex: 1;">${optText}</span>
+            ${badgeHtml}
+          `;
+          optionsBox.appendChild(row);
+        });
+
+        card.appendChild(header);
+        card.appendChild(qTitle);
+        card.appendChild(optionsBox);
+        el.reviewList.appendChild(card);
+      });
+    }
+
+    /**
+     * Reset quiz state and retake
+     */
+    function retakeQuiz() {
+      state.currentIndex = 0;
+      state.userAnswers = {};
+      state.isSubmitted = false;
+      state.isTransitioning = false;
+
+      el.resultsView.classList.remove('is-visible');
+      el.quizStage.style.display = 'block';
+      el.quizHeader.style.display = 'block';
+
+      renderQuestion();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ============================================================================
+    // KEYBOARD NAVIGATION
+    // ============================================================================
+    window.addEventListener('keydown', (e) => {
+      // Escape closes warning modal
+      if (e.key === 'Escape' && el.warningModal.classList.contains('is-active')) {
+        closeWarningModal();
+        return;
+      }
+
+      // If warning modal is open, don't trigger quiz navigation keys
+      if (el.warningModal.classList.contains('is-active')) {
+        return;
+      }
+
+      // If already on results view, only handle Enter or Retake if desired
+      if (state.isSubmitted) {
+        return;
+      }
+
+      // Arrow navigation
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevious();
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+        return;
+      }
+
+      // Enter advances or submits
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleNext();
+        return;
+      }
+
+      // Number keys 1-9 toggle option index 0-8
+      const keyNum = parseInt(e.key, 10);
+      if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= 9) {
+        const optionIndex = keyNum - 1;
+        const q = QUESTIONS[state.currentIndex];
+        if (optionIndex < q.options.length) {
+          e.preventDefault();
+          toggleOption(optionIndex);
+        }
+      }
+    });
+
+    // ============================================================================
+    // EVENT LISTENERS INITIALIZATION
+    // ============================================================================
+    el.prevBtn.addEventListener('click', handlePrevious);
+    el.nextBtn.addEventListener('click', handleNext);
+    el.retakeBtn.addEventListener('click', retakeQuiz);
+
+    // Close modal on backdrop outside click
+    el.warningModal.addEventListener('click', (e) => {
+      if (e.target === el.warningModal) {
+        closeWarningModal();
+      }
+    });
+
+    // Initial mount
+    renderQuestion();
+  </script>
+</body>
+</html>
+

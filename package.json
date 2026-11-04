@@ -1,0 +1,29 @@
+{
+  "name": "inquiry-quiz-engine",
+  "version": "1.0.0",
+  "description": "Curated editorial quiz platform in TypeScript with owner analytics and reactions",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "prestart": "npm run build",
+    "start": "node dist/server.js"
+  },
+  "keywords": [
+    "quiz",
+    "typescript",
+    "editorial",
+    "analytics"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^7.0.2"
+  }
+}
